@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Boxes,
   Download,
-  DownloadCloud,
   FileCheck,
   FileImage,
   Gauge,
@@ -27,11 +26,6 @@ type Theme = "dark" | "light";
 type PresetKey = "SHRINK" | "BALANCED" | "DETAIL";
 type OutputFormat = "AUTO" | "WEBP" | "JPEG" | "PNG";
 type JobStatus = "QUEUED" | "PROCESSING" | "READY" | "ERROR";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void> | void;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
 
 interface ImageJob {
   id: string;
@@ -172,8 +166,6 @@ export default function ImagePressApp() {
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("AUTO");
   const [isDragging, setIsDragging] = useState(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const jobsRef = useRef<ImageJob[]>([]);
@@ -182,64 +174,6 @@ export default function ImagePressApp() {
   useEffect(() => {
     jobsRef.current = jobs;
   }, [jobs]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
-      return;
-    }
-
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.warn("ServiceWorker registration failed:", err);
-    });
-
-    const handleBeforeInstallPrompt = (event: Event) => {
-      const promptEvent = event as BeforeInstallPromptEvent;
-      promptEvent.preventDefault();
-      setInstallPrompt(promptEvent);
-    };
-
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    };
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleAppInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleAppInstalled);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      const seen = new Set<string>();
-      for (const job of jobsRef.current) {
-        if (!seen.has(job.originalUrl)) {
-          URL.revokeObjectURL(job.originalUrl);
-          seen.add(job.originalUrl);
-        }
-        if (job.downloadUrl && !seen.has(job.downloadUrl)) {
-          URL.revokeObjectURL(job.downloadUrl);
-          seen.add(job.downloadUrl);
-        }
-        if (job.compressedBlob && job.compressedBlob !== job.originalBlob && job.downloadUrl) {
-          // no-op, retained for symmetry
-        }
-      }
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    }
-  };
 
   const updateQueuedJobs = (updater: (job: ImageJob) => ImageJob) => {
     setJobs((prev) => prev.map((job) => (job.status === "QUEUED" ? updater(job) : job)));
@@ -633,33 +567,13 @@ export default function ImagePressApp() {
                   theme === "dark" ? "bg-[#262624] text-amber-400 border-amber-500/30" : "bg-amber-100 text-amber-800 border-amber-300"
                 }`}
               >
-                PWA OFFLINE
+                CLIENT OFFLINE
               </span>
-              {isInstalled && (
-                <span
-                  className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
-                    theme === "dark" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-emerald-100 text-emerald-800 border-emerald-300"
-                  }`}
-                >
-                  INSTALLED
-                </span>
-              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {installPrompt && (
-            <button
-              onClick={handleInstallClick}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-black uppercase transition cursor-pointer shadow"
-              title="Install IMAGE-PRESS as a desktop or mobile app"
-            >
-              <DownloadCloud className="w-3.5 h-3.5" />
-              <span>Install App</span>
-            </button>
-          )}
-
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className={`p-2 border transition cursor-pointer ${
