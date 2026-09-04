@@ -24,7 +24,6 @@ import {
   Smartphone
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
-import confetti from "canvas-confetti";
 import { soundEngine } from "./audio";
 
 interface PDFJob {
@@ -281,8 +280,6 @@ export default function PDFCompressApp() {
       await compressSingleJob(job, selectedTier);
     }
     setIsBatchProcessing(false);
-
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
   };
 
   const handleDownload = (job: PDFJob) => {
