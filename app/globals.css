@@ -1,26 +1,33 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-radius: 0px !important;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background-color: #141412;
+  color: #ecebe6;
+}
+
+/* Original Clean Hardware Grid Background */
+.bg-grid-pattern-dark {
+  background-color: #141412;
+  background-image: 
+    linear-gradient(to right, #242420 1px, transparent 1px),
+    linear-gradient(to bottom, #242420 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-grid-pattern-light {
+  background-color: #f5f4ef;
+  background-image: 
+    linear-gradient(to right, #e2dfd4 1px, transparent 1px),
+    linear-gradient(to bottom, #e2dfd4 1px, transparent 1px);
+  background-size: 32px 32px;
 }
