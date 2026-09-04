@@ -17,16 +17,9 @@ import {
   RefreshCw, 
   Zap,
   Gauge,
-  TrendingDown,
-  DownloadCloud,
-  CheckCircle2
+  TrendingDown
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void> | void;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
 
 type PdfJsPage = {
   getViewport: (options: { scale: number }) => { width: number; height: number };
@@ -69,8 +62,6 @@ export default function PDFCompressApp() {
   const [selectedTier, setSelectedTier] = useState<"AGGRESSIVE" | "BALANCED" | "LOSSLESS">("BALANCED");
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -80,29 +71,8 @@ export default function PDFCompressApp() {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
         console.warn("ServiceWorker registration failed:", err);
       });
-
-      // Capture beforeinstallprompt for 1-click install button
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        setInstallPrompt(e as BeforeInstallPromptEvent);
-      });
-
-      window.addEventListener("appinstalled", () => {
-        setIsInstalled(true);
-        setInstallPrompt(null);
-      });
     }
   }, []);
-
-  const handleInstallClick = async () => {
-    if (!installPrompt) return;
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
-    if (outcome === "accepted") {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    }
-  };
 
   const formatBytes = (bytes: number) => {
     if (bytes <= 0) return "0 B";
@@ -375,35 +345,13 @@ export default function PDFCompressApp() {
               <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
                 theme === "dark" ? "bg-[#262624] text-amber-400 border-amber-500/30" : "bg-amber-100 text-amber-800 border-amber-300"
               }`}>
-                PWA OFFLINE
+                CLIENT OFFLINE
               </span>
-              {isInstalled && (
-                <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
-                  theme === "dark" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-emerald-100 text-emerald-800 border-emerald-300"
-                }`}>
-                  <span className="inline-flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    INSTALLED
-                  </span>
-                </span>
-              )}
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Install App Button if installable */}
-          {installPrompt && (
-            <button
-              onClick={handleInstallClick}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-black uppercase transition cursor-pointer shadow"
-              title="Install PDF-PRESS as Desktop or Mobile App"
-            >
-              <DownloadCloud className="w-3.5 h-3.5" />
-              <span>Install App</span>
-            </button>
-          )}
-
           {/* Theme Switcher */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
