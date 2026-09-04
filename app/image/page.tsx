@@ -1222,7 +1222,7 @@ export default function ImagePressApp() {
           theme === "dark" ? "bg-[#181816]/95 border-[#383733] text-neutral-500" : "bg-white/95 border-[#d4d2c7] text-neutral-700"
         }`}
       >
-        <span>ENGINE: <strong>IMAGE-PRESS OFFLINE PWA</strong></span>
+        <span>ENGINE: <strong>IMAGE-PRESS CLIENT ENGINE</strong></span>
         <span>PRIVACY: <strong>NO SERVER UPLOADS</strong></span>
       </footer>
     </div>

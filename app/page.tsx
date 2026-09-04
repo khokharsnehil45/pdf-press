@@ -839,7 +839,7 @@ export default function PDFCompressApp() {
       <footer className={`h-8 border-t px-4 sm:px-6 flex items-center justify-between text-[9px] sm:text-[10px] font-mono ${
         theme === "dark" ? "bg-[#181816]/95 border-[#383733] text-neutral-500" : "bg-white/95 border-[#d4d2c7] text-neutral-700"
       }`}>
-        <span>ENGINE: <strong>PDF-PRESS OFFLINE PWA</strong></span>
+        <span>ENGINE: <strong>PDF-PRESS CLIENT ENGINE</strong></span>
         <span>PRIVACY: <strong>100% DISK ISOLATED</strong></span>
       </footer>
 
