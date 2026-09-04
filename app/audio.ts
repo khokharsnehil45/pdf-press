@@ -1,49 +1,59 @@
-// Native Web Audio API Mechanical Synthesizer (Zero External Assets)
+// Native Web Audio API Mechanical Synthesizer with Mobile Unlock & Amplified Output
 class SoundFXEngine {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
+  private isUnlocked: boolean = false;
 
-  private init() {
-    if (!this.ctx && typeof window !== "undefined") {
+  // Explicit touch / pointer gesture unlock for iOS Safari & Android Chrome
+  public unlockAudio() {
+    if (typeof window === "undefined") return;
+    
+    if (!this.ctx) {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
+
     if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
+      this.ctx.resume().then(() => {
+        this.isUnlocked = true;
+      }).catch(() => {});
+    } else {
+      this.isUnlocked = true;
     }
   }
 
-  // Crisp mechanical tactile switch click
+  // Crisp mechanical tactile switch click (Audible & Punchy)
   public playClick() {
     if (!this.enabled) return;
-    this.init();
+    this.unlockAudio();
     if (!this.ctx) return;
 
     try {
+      const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.035);
+      osc.frequency.setValueAtTime(1400, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.045);
 
-      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.035);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.05);
     } catch (e) {}
   }
 
   // Heavy relay switch engaged
   public playEngage() {
     if (!this.enabled) return;
-    this.init();
+    this.unlockAudio();
     if (!this.ctx) return;
 
     try {
@@ -52,45 +62,45 @@ class SoundFXEngine {
       const gain = this.ctx.createGain();
 
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(620, now + 0.06);
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(750, now + 0.07);
 
-      gain.gain.setValueAtTime(0.15, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      gain.gain.setValueAtTime(0.40, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start();
-      osc.stop(now + 0.08);
+      osc.start(now);
+      osc.stop(now + 0.09);
     } catch (e) {}
   }
 
-  // Chime / Task Success Synthesizer
+  // Harmonic Task Success Synthesizer
   public playSuccess() {
     if (!this.enabled) return;
-    this.init();
+    this.unlockAudio();
     if (!this.ctx) return;
 
     try {
       const now = this.ctx.currentTime;
-      const chords = [523.25, 659.25, 783.99, 1046.50]; // C Major arpeggio
+      const chords = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 arpeggio
 
       chords.forEach((freq, idx) => {
         const osc = this.ctx!.createOscillator();
         const gain = this.ctx!.createGain();
 
         osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
 
-        gain.gain.setValueAtTime(0.1, now + idx * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.25);
+        gain.gain.setValueAtTime(0.35, now + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.35);
 
         osc.connect(gain);
         gain.connect(this.ctx!.destination);
 
-        osc.start(now + idx * 0.05);
-        osc.stop(now + idx * 0.05 + 0.26);
+        osc.start(now + idx * 0.06);
+        osc.stop(now + idx * 0.06 + 0.36);
       });
     } catch (e) {}
   }
@@ -98,7 +108,7 @@ class SoundFXEngine {
   // Trash / Delete Thud
   public playDelete() {
     if (!this.enabled) return;
-    this.init();
+    this.unlockAudio();
     if (!this.ctx) return;
 
     try {
@@ -107,17 +117,17 @@ class SoundFXEngine {
       const gain = this.ctx.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(240, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.07);
 
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
-      osc.start();
-      osc.stop(now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.08);
     } catch (e) {}
   }
 }

@@ -20,7 +20,8 @@ import {
   TrendingDown,
   Cpu,
   Volume2,
-  VolumeX
+  VolumeX,
+  Smartphone
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import confetti from "canvas-confetti";
@@ -54,14 +55,29 @@ export default function PDFCompressApp() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const workerRef = useRef<Worker | null>(null);
 
-  // Trigger mobile haptic vibration if supported
-  const triggerHaptic = (pattern: number | number[] = 15) => {
+  // Trigger strong, prominent haptic vibrations
+  const triggerHaptic = (pattern: number | number[] = 40) => {
     if (typeof window !== "undefined" && "vibrate" in navigator) {
       try {
         navigator.vibrate(pattern);
       } catch (e) {}
     }
   };
+
+  // Global touch listener to unlock mobile AudioContext on first tap
+  useEffect(() => {
+    const handleFirstTouch = () => {
+      soundEngine.unlockAudio();
+    };
+
+    window.addEventListener("touchstart", handleFirstTouch, { passive: true, once: false });
+    window.addEventListener("click", handleFirstTouch, { passive: true, once: false });
+
+    return () => {
+      window.removeEventListener("touchstart", handleFirstTouch);
+      window.removeEventListener("click", handleFirstTouch);
+    };
+  }, []);
 
   const toggleSound = () => {
     const next = !soundEnabled;
@@ -97,7 +113,7 @@ export default function PDFCompressApp() {
             const downloadUrl = URL.createObjectURL(blob);
 
             soundEngine.playSuccess();
-            triggerHaptic([25, 50, 25]);
+            triggerHaptic([60, 50, 80]);
 
             setJobs(prev => prev.map(j => {
               if (j.id === id) {
@@ -150,7 +166,7 @@ export default function PDFCompressApp() {
     if (!files || files.length === 0) return;
 
     soundEngine.playEngage();
-    triggerHaptic(20);
+    triggerHaptic(40);
 
     const newJobs: PDFJob[] = [];
 
@@ -196,7 +212,7 @@ export default function PDFCompressApp() {
     const activeTier = tierToUse || job.tier || selectedTier;
     
     soundEngine.playClick();
-    triggerHaptic(15);
+    triggerHaptic(40);
     
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "COMPRESSING", tier: activeTier, progressPercent: 5 } : j));
 
@@ -220,7 +236,7 @@ export default function PDFCompressApp() {
         const downloadUrl = URL.createObjectURL(blob);
 
         soundEngine.playSuccess();
-        triggerHaptic([25, 50, 25]);
+        triggerHaptic([60, 50, 80]);
 
         setJobs(prev => prev.map(j => {
           if (j.id === job.id) {
@@ -258,7 +274,7 @@ export default function PDFCompressApp() {
     if (queued.length === 0) return;
 
     soundEngine.playEngage();
-    triggerHaptic([20, 40, 20]);
+    triggerHaptic([50, 60, 80]);
     setIsBatchProcessing(true);
 
     for (const job of queued) {
@@ -272,7 +288,7 @@ export default function PDFCompressApp() {
   const handleDownload = (job: PDFJob) => {
     if (!job.downloadUrl) return;
     soundEngine.playClick();
-    triggerHaptic(15);
+    triggerHaptic(30);
     const a = document.createElement("a");
     a.href = job.downloadUrl;
     a.download = `COMPRESSED_${job.name}`;
@@ -281,13 +297,13 @@ export default function PDFCompressApp() {
 
   const handleRemove = (jobId: string) => {
     soundEngine.playDelete();
-    triggerHaptic(20);
+    triggerHaptic(40);
     setJobs(prev => prev.filter(j => j.id !== jobId));
   };
 
   const handleClearAll = () => {
     soundEngine.playDelete();
-    triggerHaptic([20, 30]);
+    triggerHaptic([50, 40]);
     setJobs([]);
   };
 
@@ -309,7 +325,7 @@ export default function PDFCompressApp() {
 
   const handleSelectTier = (tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
     soundEngine.playClick();
-    triggerHaptic(12);
+    triggerHaptic(30);
     setSelectedTier(tier);
     setJobs(prev => prev.map(j => (j.status === "QUEUED" ? { ...j, tier } : j)));
   };
@@ -368,7 +384,7 @@ export default function PDFCompressApp() {
           <button
             onClick={() => {
               soundEngine.playClick();
-              triggerHaptic(15);
+              triggerHaptic(30);
               setTheme(theme === "dark" ? "light" : "dark");
             }}
             className={`p-2 border transition cursor-pointer ${
