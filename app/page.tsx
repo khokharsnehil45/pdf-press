@@ -23,6 +23,29 @@ import {
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void> | void;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+type PdfJsPage = {
+  getViewport: (options: { scale: number }) => { width: number; height: number };
+  render: (options: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: { width: number; height: number };
+  }) => { promise: Promise<void> };
+};
+
+type PdfJsDocument = {
+  numPages: number;
+  getPage: (pageNum: number) => Promise<PdfJsPage>;
+};
+
+type PdfJsModule = {
+  getDocument: (options: { data: ArrayBuffer }) => { promise: Promise<PdfJsDocument> };
+  GlobalWorkerOptions?: { workerSrc: string };
+};
+
 interface PDFJob {
   id: string;
   name: string;
@@ -46,7 +69,7 @@ export default function PDFCompressApp() {
   const [selectedTier, setSelectedTier] = useState<"AGGRESSIVE" | "BALANCED" | "LOSSLESS">("BALANCED");
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,7 +84,7 @@ export default function PDFCompressApp() {
       // Capture beforeinstallprompt for 1-click install button
       window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault();
-        setInstallPrompt(e);
+        setInstallPrompt(e as BeforeInstallPromptEvent);
       });
 
       window.addEventListener("appinstalled", () => {
@@ -92,7 +115,7 @@ export default function PDFCompressApp() {
   // Helper to load pdfjs dynamically
   const getPdfJs = async () => {
     if (typeof window === "undefined") return null;
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.js" as any).catch(() => import("pdfjs-dist/build/pdf" as any));
+    const pdfjsLib = (await import("pdfjs-dist/legacy/build/pdf.js").catch(() => import("pdfjs-dist/build/pdf"))) as unknown as PdfJsModule;
     if (pdfjsLib.GlobalWorkerOptions) {
       pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
     }
@@ -260,7 +283,7 @@ export default function PDFCompressApp() {
         }
         return j;
       }));
-    } catch (error: any) {
+    } catch (error) {
       console.error("Compression error:", error);
       setJobs(prev => prev.map(j => {
         if (j.id === job.id) {
@@ -354,6 +377,16 @@ export default function PDFCompressApp() {
               }`}>
                 PWA OFFLINE
               </span>
+              {isInstalled && (
+                <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
+                  theme === "dark" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                }`}>
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    INSTALLED
+                  </span>
+                </span>
+              )}
             </div>
           </div>
         </div>
