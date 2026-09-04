@@ -19,10 +19,12 @@ import {
   Gauge,
   TrendingDown,
   Cpu,
-  Activity
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
 import confetti from "canvas-confetti";
+import { soundEngine } from "./audio";
 
 interface PDFJob {
   id: string;
@@ -43,6 +45,7 @@ interface PDFJob {
 
 export default function PDFCompressApp() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [jobs, setJobs] = useState<PDFJob[]>([]);
   const [selectedTier, setSelectedTier] = useState<"AGGRESSIVE" | "BALANCED" | "LOSSLESS">("BALANCED");
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -50,6 +53,22 @@ export default function PDFCompressApp() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const workerRef = useRef<Worker | null>(null);
+
+  // Trigger mobile haptic vibration if supported
+  const triggerHaptic = (pattern: number | number[] = 15) => {
+    if (typeof window !== "undefined" && "vibrate" in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (e) {}
+    }
+  };
+
+  const toggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    soundEngine.enabled = next;
+    if (next) soundEngine.playClick();
+  };
 
   // Initialize background Web Worker
   useEffect(() => {
@@ -76,6 +95,9 @@ export default function PDFCompressApp() {
             const finalLength = compressedBytes.length;
             const blob = new Blob([compressedBytes.buffer as ArrayBuffer], { type: "application/pdf" });
             const downloadUrl = URL.createObjectURL(blob);
+
+            soundEngine.playSuccess();
+            triggerHaptic([25, 50, 25]);
 
             setJobs(prev => prev.map(j => {
               if (j.id === id) {
@@ -127,6 +149,9 @@ export default function PDFCompressApp() {
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
+    soundEngine.playEngage();
+    triggerHaptic(20);
+
     const newJobs: PDFJob[] = [];
 
     for (let i = 0; i < files.length; i++) {
@@ -169,20 +194,22 @@ export default function PDFCompressApp() {
   // Run Compression offloaded to background Web Worker thread
   const compressSingleJob = async (job: PDFJob, tierToUse?: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
     const activeTier = tierToUse || job.tier || selectedTier;
+    
+    soundEngine.playClick();
+    triggerHaptic(15);
+    
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "COMPRESSING", tier: activeTier, progressPercent: 5 } : j));
 
     try {
       const arrayBuffer = await job.originalBlob.arrayBuffer();
 
       if (workerRef.current) {
-        // Send task to Web Worker
         workerRef.current.postMessage({
           id: job.id,
           arrayBuffer,
           tier: activeTier
         }, [arrayBuffer]);
       } else {
-        // Fallback to local main thread if Web Worker isn't supported
         const pdfDoc = await PDFDocument.load(arrayBuffer, { updateMetadata: false, ignoreEncryption: true });
         const compressedBytes = await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false });
         const finalLength = compressedBytes.length;
@@ -191,6 +218,9 @@ export default function PDFCompressApp() {
 
         const blob = new Blob([compressedBytes.buffer as ArrayBuffer], { type: "application/pdf" });
         const downloadUrl = URL.createObjectURL(blob);
+
+        soundEngine.playSuccess();
+        triggerHaptic([25, 50, 25]);
 
         setJobs(prev => prev.map(j => {
           if (j.id === job.id) {
@@ -227,7 +257,10 @@ export default function PDFCompressApp() {
     const queued = jobs.filter(j => j.status === "QUEUED");
     if (queued.length === 0) return;
 
+    soundEngine.playEngage();
+    triggerHaptic([20, 40, 20]);
     setIsBatchProcessing(true);
+
     for (const job of queued) {
       await compressSingleJob(job, selectedTier);
     }
@@ -238,6 +271,8 @@ export default function PDFCompressApp() {
 
   const handleDownload = (job: PDFJob) => {
     if (!job.downloadUrl) return;
+    soundEngine.playClick();
+    triggerHaptic(15);
     const a = document.createElement("a");
     a.href = job.downloadUrl;
     a.download = `COMPRESSED_${job.name}`;
@@ -245,10 +280,14 @@ export default function PDFCompressApp() {
   };
 
   const handleRemove = (jobId: string) => {
+    soundEngine.playDelete();
+    triggerHaptic(20);
     setJobs(prev => prev.filter(j => j.id !== jobId));
   };
 
   const handleClearAll = () => {
+    soundEngine.playDelete();
+    triggerHaptic([20, 30]);
     setJobs([]);
   };
 
@@ -269,6 +308,8 @@ export default function PDFCompressApp() {
   };
 
   const handleSelectTier = (tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
+    soundEngine.playClick();
+    triggerHaptic(12);
     setSelectedTier(tier);
     setJobs(prev => prev.map(j => (j.status === "QUEUED" ? { ...j, tier } : j)));
   };
@@ -303,22 +344,33 @@ export default function PDFCompressApp() {
               <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
                 theme === "dark" ? "bg-[#262624] text-amber-400 border-amber-500/30" : "bg-amber-100 text-amber-800 border-amber-300"
               }`}>
-                WORKER CORE
+                HAPTIC AUDIO
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <div className={`hidden sm:flex items-center gap-1.5 text-[10px] px-2 py-0.5 border ${
-            theme === "dark" ? "bg-[#1c1c1a] border-[#383733] text-emerald-400" : "bg-emerald-50 border-emerald-300 text-emerald-800 font-bold"
-          }`}>
-            <Cpu className="w-3 h-3 text-emerald-500" />
-            <span>OFF-THREAD WORKER ACTIVE</span>
-          </div>
-
+        <div className="flex items-center gap-2">
+          {/* Sound Mute / Unmute Toggle */}
           <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={toggleSound}
+            className={`p-2 border transition cursor-pointer ${
+              soundEnabled
+                ? theme === "dark" ? "border-amber-500/40 bg-amber-500/10 text-amber-400" : "border-amber-400 bg-amber-100 text-amber-900"
+                : theme === "dark" ? "border-[#383733] bg-[#1c1c1a] text-neutral-500" : "border-[#d4d2c7] bg-neutral-100 text-neutral-400"
+            }`}
+            title={soundEnabled ? "Mute Mechanical Audio FX" : "Unmute Audio FX"}
+          >
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </button>
+
+          {/* Theme Switcher */}
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              triggerHaptic(15);
+              setTheme(theme === "dark" ? "light" : "dark");
+            }}
             className={`p-2 border transition cursor-pointer ${
               theme === "dark" ? "border-[#383733] bg-[#1c1c1a] text-amber-400" : "border-[#d4d2c7] bg-neutral-100 text-neutral-900 hover:bg-neutral-200"
             }`}
@@ -794,7 +846,7 @@ export default function PDFCompressApp() {
       <footer className={`h-8 border-t px-4 sm:px-6 flex items-center justify-between text-[9px] sm:text-[10px] font-mono ${
         theme === "dark" ? "bg-[#181816]/95 border-[#383733] text-neutral-500" : "bg-white/95 border-[#d4d2c7] text-neutral-700"
       }`}>
-        <span>ENGINE: <strong>PDF-PRESS OFF-THREAD WORKER</strong></span>
+        <span>ENGINE: <strong>PDF-PRESS HAPTIC AUDIO ENGINE</strong></span>
         <span>PRIVACY: <strong>100% DISK ISOLATED</strong></span>
       </footer>
 
