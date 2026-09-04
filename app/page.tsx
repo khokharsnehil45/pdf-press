@@ -65,15 +65,6 @@ export default function PDFCompressApp() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Register PWA Service Worker for 100% Offline Capability
-  useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((err) => {
-        console.warn("ServiceWorker registration failed:", err);
-      });
-    }
-  }, []);
-
   const formatBytes = (bytes: number) => {
     if (bytes <= 0) return "0 B";
     const k = 1024;

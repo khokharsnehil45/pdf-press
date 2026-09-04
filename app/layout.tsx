@@ -15,15 +15,8 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PDF-PRESS // 100% Client-Side Private PDF Compressor",
   description: "Compress PDFs offline with zero cloud uploads. High-throughput Swiss Neo-Brutalist document compression engine.",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "PDF-PRESS",
-  },
   icons: {
     icon: "/favicon.ico",
-    apple: "/icon-192.png",
   },
   keywords: ["pdf compressor", "offline pdf compress", "client side pdf", "private pdf compression", "shrink pdf size"],
   authors: [{ name: "PDF-PRESS Engine" }],

@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    border-radius: 0px !important;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  background-color: #141412;
+  color: #ecebe6;
+}
+
+/* Original Clean Hardware Grid Background */
+.bg-grid-pattern-dark {
+  background-color: #141412;
+  background-image: 
+    linear-gradient(to right, #242420 1px, transparent 1px),
+    linear-gradient(to bottom, #242420 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-grid-pattern-light {
+  background-color: #f5f4ef;
+  background-image: 
+    linear-gradient(to right, #e2dfd4 1px, transparent 1px),
+    linear-gradient(to bottom, #e2dfd4 1px, transparent 1px);
+  background-size: 32px 32px;
+}
