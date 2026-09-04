@@ -175,6 +175,24 @@ export default function ImagePressApp() {
     jobsRef.current = jobs;
   }, [jobs]);
 
+  // Unregister old Service Workers and purge old caches so mobile browsers completely clear the PWA state
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+      });
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          for (const name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    }
+  }, []);
+
   const updateQueuedJobs = (updater: (job: ImageJob) => ImageJob) => {
     setJobs((prev) => prev.map((job) => (job.status === "QUEUED" ? updater(job) : job)));
   };

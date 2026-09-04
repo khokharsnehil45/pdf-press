@@ -65,6 +65,24 @@ export default function PDFCompressApp() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Unregister old Service Workers and purge old caches so mobile browsers completely clear the PWA state
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const registration of registrations) {
+          registration.unregister();
+        }
+      });
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          for (const name of names) {
+            caches.delete(name);
+          }
+        });
+      }
+    }
+  }, []);
+
   const formatBytes = (bytes: number) => {
     if (bytes <= 0) return "0 B";
     const k = 1024;
