@@ -292,26 +292,26 @@ export default function PDFCompressApp() {
     }`}>
       
       {/* Top Header */}
-      <header className={`h-14 border-b px-4 sm:px-6 flex items-center justify-between z-30 ${
+      <header className={`h-14 border-b px-3 sm:px-6 flex items-center justify-between z-30 ${
         theme === "dark" ? "bg-[#181816]/95 border-[#383733]" : "bg-white/95 border-[#d4d2c7]"
       }`}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-amber-500 text-black flex items-center justify-center font-black text-xs shadow">
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className={`font-black text-sm tracking-wider uppercase ${textPrimary}`}>PDF-PRESS</span>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${
+            <div className="flex items-center gap-1.5">
+              <span className={`font-black text-xs sm:text-sm tracking-wider uppercase ${textPrimary}`}>PDF-PRESS</span>
+              <span className={`text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 border ${
                 theme === "dark" ? "bg-[#262624] text-amber-400 border-amber-500/30" : "bg-amber-100 text-amber-800 border-amber-300"
               }`}>
-                CLIENT ENGINE
+                CLIENT
               </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className={`p-2 border transition cursor-pointer ${
@@ -325,47 +325,47 @@ export default function PDFCompressApp() {
       </header>
 
       {/* Main Workspace Body */}
-      <main className="flex-1 p-4 sm:p-6 space-y-6 max-w-5xl mx-auto w-full">
+      <main className="flex-1 p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl mx-auto w-full">
         
         {/* Metric Cards Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
           
-          <div className={`p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
-            <div className={`text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
+          <div className={`p-3 sm:p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
+            <div className={`text-[9px] sm:text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
               <span>DOCUMENTS</span>
               <Layers className="w-3.5 h-3.5 text-amber-500" />
             </div>
-            <div className={`text-2xl font-black font-mono mt-1 ${textPrimary}`}>
+            <div className={`text-lg sm:text-2xl font-black font-mono mt-1 ${textPrimary}`}>
               {jobs.length} <span className={`text-xs font-normal ${textMuted}`}>Files</span>
             </div>
           </div>
 
-          <div className={`p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
-            <div className={`text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
+          <div className={`p-3 sm:p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
+            <div className={`text-[9px] sm:text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
               <span>INPUT SIZE</span>
               <Boxes className="w-3.5 h-3.5 text-sky-500" />
             </div>
-            <div className={`text-2xl font-black font-mono mt-1 ${textPrimary}`}>
+            <div className={`text-lg sm:text-2xl font-black font-mono mt-1 ${textPrimary}`}>
               {formatBytes(totalOriginalBytes)}
             </div>
           </div>
 
-          <div className={`p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
-            <div className={`text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
+          <div className={`p-3 sm:p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
+            <div className={`text-[9px] sm:text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
               <span>{hasCompressedJobs ? "ACTUAL SAVINGS" : "EST. SAVINGS"}</span>
               <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
             </div>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
+            <div className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
               {hasCompressedJobs ? formatBytes(actualSavedBytes) : formatBytes(overallEstimated.estimatedSaved)}
             </div>
           </div>
 
-          <div className={`p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
-            <div className={`text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
+          <div className={`p-3 sm:p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"}`}>
+            <div className={`text-[9px] sm:text-[10px] uppercase font-bold flex items-center justify-between ${textSecondary}`}>
               <span>{hasCompressedJobs ? "AVG RATIO" : "EST. RATIO"}</span>
               <Gauge className="w-3.5 h-3.5 text-amber-500" />
             </div>
-            <div className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">
+            <div className="text-lg sm:text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">
               {hasCompressedJobs 
                 ? `${Math.round((actualSavedBytes / (readyJobs.reduce((acc, j) => acc + j.originalSize, 0) || 1)) * 100)}%` 
                 : `~${overallEstimated.ratio}%`}
@@ -375,22 +375,22 @@ export default function PDFCompressApp() {
         </div>
 
         {/* Compression Tier Selector with Dynamic Preview */}
-        <div className={`p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"} space-y-3`}>
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className={`p-3.5 sm:p-4 border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"} space-y-3`}>
+          <div className="flex items-center justify-between flex-wrap gap-1.5">
             <span className={`text-xs font-black uppercase flex items-center gap-1.5 ${textPrimary}`}>
               <Sliders className="w-3.5 h-3.5 text-amber-500" />
-              SELECT COMPRESSION PRESET (DYNAMIC ESTIMATE)
+              COMPRESSION PRESET
             </span>
             {totalOriginalBytes > 0 && (
-              <span className={`text-[11px] font-mono font-bold px-2 py-0.5 border ${
+              <span className={`text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 border ${
                 theme === "dark" ? "text-amber-400 bg-amber-500/10 border-amber-500/30" : "text-amber-800 bg-amber-100 border-amber-300"
               }`}>
-                Est. Total: {formatBytes(overallEstimated.estimatedFinal)} (Save ~{formatBytes(overallEstimated.estimatedSaved)})
+                Est. Output: {formatBytes(overallEstimated.estimatedFinal)} (Save ~{formatBytes(overallEstimated.estimatedSaved)})
               </span>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
             {[
               { 
                 id: "BALANCED" as const, 
@@ -421,7 +421,7 @@ export default function PDFCompressApp() {
                 <button
                   key={tier.id}
                   onClick={() => handleSelectTier(tier.id)}
-                  className={`p-3.5 border-2 text-left flex flex-col justify-between gap-3 transition cursor-pointer relative ${
+                  className={`p-3 border-2 text-left flex flex-col justify-between gap-2.5 transition cursor-pointer relative ${
                     isSelected 
                       ? theme === "dark"
                         ? "border-amber-500 bg-amber-500/10 text-white shadow-lg shadow-amber-500/5" 
@@ -432,7 +432,7 @@ export default function PDFCompressApp() {
                   }`}
                 >
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <span className={`text-xs font-black uppercase tracking-wide ${textPrimary}`}>{tier.name}</span>
                       {isSelected ? (
                         <span className="text-[9px] font-black px-1.5 py-0.5 bg-amber-500 text-black uppercase">
@@ -446,22 +446,22 @@ export default function PDFCompressApp() {
                         </span>
                       )}
                     </div>
-                    <p className={`text-[11px] leading-snug font-medium ${textSecondary}`}>{tier.desc}</p>
+                    <p className={`text-[10px] sm:text-[11px] leading-snug font-medium ${textSecondary}`}>{tier.desc}</p>
                   </div>
 
-                  <div className={`p-2 border text-[11px] font-mono flex items-center justify-between ${
+                  <div className={`p-1.5 sm:p-2 border text-[10px] sm:text-[11px] font-mono flex items-center justify-between ${
                     isSelected 
                       ? theme === "dark" ? "border-amber-500/40 bg-amber-500/15 text-amber-200" : "border-amber-400 bg-amber-100 text-amber-900 font-bold"
                       : theme === "dark" ? "border-[#262624] bg-[#181816]/70 text-neutral-400" : "border-neutral-200 bg-white text-neutral-700"
                   }`}>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <TrendingDown className={`w-3.5 h-3.5 ${isSelected ? (theme === "dark" ? "text-amber-400" : "text-amber-700") : textMuted}`} />
                       <span className="font-bold">{tier.ratioText}</span>
                     </div>
 
                     {totalOriginalBytes > 0 && (
                       <div className="text-right">
-                        <span className={`text-[10px] block ${textMuted}`}>Will Save</span>
+                        <span className={`text-[9px] block ${textMuted}`}>Will Save</span>
                         <span className={`font-black ${isSelected ? (theme === "dark" ? "text-emerald-400" : "text-emerald-700") : textPrimary}`}>
                           ~{formatBytes(est.estimatedSaved)}
                         </span>
@@ -487,7 +487,7 @@ export default function PDFCompressApp() {
             handleFiles(e.dataTransfer.files);
           }}
           onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer ${
+          className={`border-2 border-dashed p-6 sm:p-8 flex flex-col items-center justify-center gap-2.5 sm:gap-3 transition-all cursor-pointer ${
             isDragging 
               ? "border-amber-500 bg-amber-500/10" 
               : theme === "dark" 
@@ -512,35 +512,35 @@ export default function PDFCompressApp() {
 
           <div className="text-center space-y-1">
             <div className={`text-xs sm:text-sm font-black uppercase tracking-wider ${textPrimary}`}>
-              DROP PDF DOCUMENTS HERE OR CLICK TO BROWSE
+              TAP OR DROP PDF DOCUMENTS HERE
             </div>
-            <p className={`text-[11px] font-mono font-medium ${textSecondary}`}>
-              True image downsampling & stream compression • 100% processed in browser
+            <p className={`text-[10px] sm:text-[11px] font-mono font-medium ${textSecondary}`}>
+              True image downsampling & stream compression • 100% in browser
             </p>
           </div>
 
-          <div className={`flex items-center gap-1.5 pt-1 text-[10px] font-mono font-bold ${
+          <div className={`flex items-center gap-1.5 pt-1 text-[9px] sm:text-[10px] font-mono font-bold ${
             theme === "dark" ? "text-emerald-400" : "text-emerald-700"
           }`}>
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>NO SERVER UPLOADS • 100% CLIENT MEMORY</span>
+            <span>NO SERVER UPLOADS • 100% CLIENT RAM</span>
           </div>
         </div>
 
-        {/* Document Ingest Stack Table */}
+        {/* Document Ingest Stack - Responsive Mobile View */}
         {jobs.length > 0 && (
           <div className="space-y-3">
             
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-2 ${textPrimary}`}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className={`text-xs font-black uppercase tracking-wider flex items-center gap-1.5 ${textPrimary}`}>
                 <FileCheck className="w-4 h-4 text-emerald-500" />
-                INGESTED PDF QUEUE ({jobs.length})
+                QUEUED ({jobs.length})
               </span>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleClearAll}
-                  className={`px-3 py-1.5 border text-xs font-bold uppercase transition cursor-pointer ${
+                  className={`px-2.5 py-1 sm:px-3 sm:py-1.5 border text-xs font-bold uppercase transition cursor-pointer ${
                     theme === "dark" 
                       ? "border-[#383733] hover:border-rose-500 text-neutral-400 hover:text-rose-400" 
                       : "border-neutral-300 bg-white hover:border-rose-500 text-neutral-700 hover:text-rose-600"
@@ -552,20 +552,96 @@ export default function PDFCompressApp() {
                 <button
                   onClick={handleCompressAll}
                   disabled={isBatchProcessing || jobs.every(j => j.status === "READY")}
-                  className={`flex items-center gap-1.5 px-4 py-1.5 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow ${
+                  className={`flex items-center gap-1 px-3 py-1 sm:px-4 sm:py-1.5 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow ${
                     isBatchProcessing || jobs.every(j => j.status === "READY")
                       ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"
                       : "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20"
                   }`}
                 >
                   {isBatchProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                  <span>{isBatchProcessing ? "Compressing..." : `Compress All with ${selectedTier}`}</span>
+                  <span>{isBatchProcessing ? "Compressing..." : `Compress All (${selectedTier})`}</span>
                 </button>
               </div>
             </div>
 
-            {/* Document Queue Table */}
-            <div className={`border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"} overflow-x-auto`}>
+            {/* Mobile Stack Cards (Visible on Small Screens) */}
+            <div className="block sm:hidden space-y-2.5">
+              {jobs.map((job) => {
+                const jobEst = calculateEstimate(job.originalSize, selectedTier);
+
+                return (
+                  <div 
+                    key={job.id} 
+                    className={`p-3 border ${
+                      theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"
+                    } space-y-2`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                        <span className={`text-xs font-bold truncate ${textPrimary}`} title={job.name}>{job.name}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemove(job.id)}
+                        className="text-neutral-500 hover:text-rose-500 p-1 cursor-pointer"
+                        title="Remove Document"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 text-[10px] font-mono p-2 border border-neutral-800/20 dark:border-neutral-800 bg-neutral-50 dark:bg-[#141412]">
+                      <div>
+                        <span className={`block ${textMuted}`}>Original</span>
+                        <span className={`font-bold ${textSecondary}`}>{formatBytes(job.originalSize)}</span>
+                      </div>
+                      <div>
+                        <span className={`block ${textMuted}`}>Optimized</span>
+                        <span className={`font-bold ${job.status === "READY" ? (theme === "dark" ? "text-emerald-400" : "text-emerald-700") : textPrimary}`}>
+                          {job.status === "READY" && job.compressedSize ? formatBytes(job.compressedSize) : `~${formatBytes(jobEst.estimatedFinal)}`}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`block ${textMuted}`}>Reduction</span>
+                        <span className="font-black text-emerald-600 dark:text-emerald-400">
+                          {job.status === "READY" && job.compressionRatio !== null ? `-${job.compressionRatio}%` : `~ -${jobEst.ratio}%`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 border ${
+                        job.status === "READY" ? (theme === "dark" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300") :
+                        job.status === "COMPRESSING" ? (theme === "dark" ? "bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse" : "bg-amber-100 text-amber-800 border-amber-300 animate-pulse") :
+                        (theme === "dark" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-neutral-100 text-neutral-800 border-neutral-300")
+                      }`}>
+                        {job.status}
+                      </span>
+
+                      {job.status === "READY" ? (
+                        <button
+                          onClick={() => handleDownload(job)}
+                          className="flex items-center gap-1 px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-[11px] uppercase transition cursor-pointer shadow"
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>Download</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => compressSingleJob(job, selectedTier)}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] uppercase transition cursor-pointer shadow"
+                        >
+                          Compress
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop / Tablet Table (Hidden on Small Phones) */}
+            <div className={`hidden sm:block border ${theme === "dark" ? "border-[#383733] bg-[#181816]" : "border-[#d4d2c7] bg-white shadow-xs"} overflow-x-auto`}>
               <table className="w-full text-left border-collapse font-mono text-xs">
                 <thead>
                   <tr className={`border-b uppercase text-[10px] font-bold ${
@@ -678,10 +754,10 @@ export default function PDFCompressApp() {
       </main>
 
       {/* Footer */}
-      <footer className={`h-8 border-t px-6 flex items-center justify-between text-[10px] font-mono ${
+      <footer className={`h-8 border-t px-4 sm:px-6 flex items-center justify-between text-[9px] sm:text-[10px] font-mono ${
         theme === "dark" ? "bg-[#181816]/95 border-[#383733] text-neutral-500" : "bg-white/95 border-[#d4d2c7] text-neutral-700"
       }`}>
-        <span>ENGINE: <strong>PDF-PRESS REAL CANVAS COMPACTOR</strong></span>
+        <span>ENGINE: <strong>PDF-PRESS CANVAS CORE</strong></span>
         <span>PRIVACY: <strong>100% DISK ISOLATED</strong></span>
       </footer>
 
