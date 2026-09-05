@@ -29,13 +29,21 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
+import Script from "next/script";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Script 
+          src="https://assets.lemonsqueezy.com/lemon.js" 
+          strategy="afterInteractive" 
+        />
+      </body>
     </html>
   );
 }

@@ -17,27 +17,21 @@ import {
   RefreshCw, 
   Zap,
   Gauge,
-  TrendingDown
+  TrendingDown,
+  Lock,
+  Crown,
+  KeyRound
 } from "lucide-react";
 import { PDFDocument } from "pdf-lib";
-
-type PdfJsPage = {
-  getViewport: (options: { scale: number }) => { width: number; height: number };
-  render: (options: {
-    canvasContext: CanvasRenderingContext2D;
-    viewport: { width: number; height: number };
-  }) => { promise: Promise<void> };
-};
-
-type PdfJsDocument = {
-  numPages: number;
-  getPage: (pageNum: number) => Promise<PdfJsPage>;
-};
-
-type PdfJsModule = {
-  getDocument: (options: { data: ArrayBuffer }) => { promise: Promise<PdfJsDocument> };
-  GlobalWorkerOptions?: { workerSrc: string };
-};
+import {
+  compressPdfCore,
+  formatBytes,
+  formatSavingsDisplay,
+  calculateAggregateStats,
+  CompressionTier,
+} from "@/lib/compressionEngine";
+import { useProStatus } from "@/lib/useProStatus";
+import { ProModal } from "@/app/components/ProModal";
 
 interface PDFJob {
   id: string;
@@ -46,7 +40,7 @@ interface PDFJob {
   compressedSize: number | null; // in bytes
   compressionRatio: number | null; // percentage saved
   status: "QUEUED" | "COMPRESSING" | "READY" | "ERROR";
-  tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS";
+  tier: CompressionTier;
   pageCount: number;
   currentPage?: number;
   progressPercent?: number;
@@ -54,16 +48,31 @@ interface PDFJob {
   compressedBlob: Blob | null;
   downloadUrl: string | null;
   errorMessage?: string;
+  wasOriginalKept?: boolean;
+  note?: string;
 }
 
 export default function PDFCompressApp() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [jobs, setJobs] = useState<PDFJob[]>([]);
-  const [selectedTier, setSelectedTier] = useState<"AGGRESSIVE" | "BALANCED" | "LOSSLESS">("BALANCED");
+  const [selectedTier, setSelectedTier] = useState<CompressionTier>("BALANCED");
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isBatchProcessing, setIsBatchProcessing] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Pro status and license management hook
+  const {
+    isPro,
+    proState,
+    isVerifying,
+    verifyError,
+    setVerifyError,
+    isModalOpen,
+    setIsModalOpen,
+    verifyLicenseKey,
+    openCheckout,
+  } = useProStatus();
 
   // Unregister old Service Workers and purge old caches so mobile browsers completely clear the PWA state
   useEffect(() => {
@@ -82,107 +91,6 @@ export default function PDFCompressApp() {
       }
     }
   }, []);
-
-  const formatBytes = (bytes: number) => {
-    if (bytes <= 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  // Helper to load pdfjs dynamically
-  const getPdfJs = async () => {
-    if (typeof window === "undefined") return null;
-    const pdfjsLib = (await import("pdfjs-dist/legacy/build/pdf.js").catch(() => import("pdfjs-dist/build/pdf"))) as unknown as PdfJsModule;
-    if (pdfjsLib.GlobalWorkerOptions) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-    }
-    return pdfjsLib;
-  };
-
-  // True High-Reduction PDF Compression Engine
-  const compressPdfCore = async (
-    arrayBuffer: ArrayBuffer,
-    tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS",
-    onProgress: (current: number, total: number, percent: number) => void
-  ): Promise<{ bytes: Uint8Array; actualRatio: number }> => {
-    try {
-      const pdfjsLib = await getPdfJs();
-      if (!pdfjsLib) throw new Error("PDF renderer could not be loaded");
-
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
-      const pdf = await loadingTask.promise;
-      const numPages = pdf.numPages;
-
-      const newPdfDoc = await PDFDocument.create();
-
-      const scale = tier === "AGGRESSIVE" ? 1.0 : tier === "BALANCED" ? 1.3 : 1.6;
-      const quality = tier === "AGGRESSIVE" ? 0.38 : tier === "BALANCED" ? 0.58 : 0.82;
-
-      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-        onProgress(pageNum, numPages, Math.round(((pageNum - 0.5) / numPages) * 100));
-
-        const page = await pdf.getPage(pageNum);
-        const originalViewport = page.getViewport({ scale: 1.0 });
-        const renderViewport = page.getViewport({ scale });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(renderViewport.width);
-        canvas.height = Math.floor(renderViewport.height);
-        const ctx = canvas.getContext("2d");
-
-        if (ctx) {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-          await page.render({
-            canvasContext: ctx,
-            viewport: renderViewport,
-          }).promise;
-
-          const jpegDataUrl = canvas.toDataURL("image/jpeg", quality);
-          const base64Data = jpegDataUrl.split(",")[1];
-          const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-          const embeddedImage = await newPdfDoc.embedJpg(imageBytes);
-          const newPage = newPdfDoc.addPage([originalViewport.width, originalViewport.height]);
-          newPage.drawImage(embeddedImage, {
-            x: 0,
-            y: 0,
-            width: originalViewport.width,
-            height: originalViewport.height,
-          });
-        }
-      }
-
-      onProgress(numPages, numPages, 100);
-
-      const compressedBytes = await newPdfDoc.save({
-        useObjectStreams: true,
-        addDefaultPage: false,
-      });
-
-      const originalLen = arrayBuffer.byteLength;
-      let ratio = Math.round((1 - (compressedBytes.length / originalLen)) * 100);
-      if (ratio < 0) ratio = 0;
-
-      return { bytes: compressedBytes, actualRatio: ratio };
-    } catch (err) {
-      console.warn("Falling back to structural stream compaction:", err);
-      const pdfDoc = await PDFDocument.load(arrayBuffer, { updateMetadata: false, ignoreEncryption: true });
-      if (tier === "AGGRESSIVE") {
-        pdfDoc.setTitle("");
-        pdfDoc.setAuthor("");
-        pdfDoc.setSubject("");
-        pdfDoc.setKeywords([]);
-      }
-      const compressedBytes = await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false });
-      let ratio = Math.round((1 - (compressedBytes.length / arrayBuffer.byteLength)) * 100);
-      if (ratio < 0) ratio = tier === "AGGRESSIVE" ? 40 : tier === "BALANCED" ? 25 : 10;
-      return { bytes: compressedBytes, actualRatio: ratio };
-    }
-  };
 
   // Inspect and queue uploaded PDFs
   const handleFiles = async (files: FileList | null) => {
@@ -227,15 +135,15 @@ export default function PDFCompressApp() {
     }
   };
 
-  // Single job compression
-  const compressSingleJob = async (job: PDFJob, tierToUse?: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
+  // Single job compression (Free & unlimited for all users)
+  const compressSingleJob = async (job: PDFJob, tierToUse?: CompressionTier) => {
     const activeTier = tierToUse || job.tier || selectedTier;
     setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: "COMPRESSING", tier: activeTier, progressPercent: 5 } : j));
 
     try {
       const arrayBuffer = await job.originalBlob.arrayBuffer();
 
-      const { bytes: finalBytes, actualRatio } = await compressPdfCore(
+      const result = await compressPdfCore(
         arrayBuffer, 
         activeTier,
         (current, total, percent) => {
@@ -243,8 +151,7 @@ export default function PDFCompressApp() {
         }
       );
 
-      const finalLength = finalBytes.length;
-      const blob = new Blob([finalBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const blob = new Blob([result.bytes.buffer as ArrayBuffer], { type: "application/pdf" });
       const downloadUrl = URL.createObjectURL(blob);
 
       setJobs(prev => prev.map(j => {
@@ -253,11 +160,13 @@ export default function PDFCompressApp() {
             ...j,
             status: "READY",
             tier: activeTier,
-            compressedSize: finalLength,
-            compressionRatio: actualRatio,
+            compressedSize: result.compressedSize,
+            compressionRatio: result.compressionRatio,
             compressedBlob: blob,
             downloadUrl,
-            progressPercent: 100
+            progressPercent: 100,
+            wasOriginalKept: result.wasOriginalKept,
+            note: result.note,
           };
         }
         return j;
@@ -277,9 +186,16 @@ export default function PDFCompressApp() {
     }
   };
 
+  // Batch compression (Gated behind Pro for >1 file)
   const handleCompressAll = async () => {
     const queued = jobs.filter(j => j.status === "QUEUED");
     if (queued.length === 0) return;
+
+    // Feature Gate: Batch processing multiple queued documents requires Pro
+    if (!isPro && queued.length > 1) {
+      setIsModalOpen(true);
+      return;
+    }
 
     setIsBatchProcessing(true);
     for (const job of queued) {
@@ -305,7 +221,7 @@ export default function PDFCompressApp() {
   };
 
   // Dynamic Estimates
-  const getTierRatio = (tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
+  const getTierRatio = (tier: CompressionTier) => {
     switch (tier) {
       case "AGGRESSIVE": return 70;
       case "BALANCED": return 50;
@@ -313,22 +229,23 @@ export default function PDFCompressApp() {
     }
   };
 
-  const calculateEstimate = (originalSize: number, tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
+  const calculateEstimate = (originalSize: number, tier: CompressionTier) => {
     const ratio = getTierRatio(tier);
     const estimatedSaved = Math.round(originalSize * (ratio / 100));
-    const estimatedFinal = Math.max(1024, originalSize - estimatedSaved);
+    const estimatedFinal = Math.max(0, originalSize - estimatedSaved);
     return { ratio, estimatedSaved, estimatedFinal };
   };
 
-  const handleSelectTier = (tier: "AGGRESSIVE" | "BALANCED" | "LOSSLESS") => {
+  const handleSelectTier = (tier: CompressionTier) => {
     setSelectedTier(tier);
     setJobs(prev => prev.map(j => (j.status === "QUEUED" ? { ...j, tier } : j)));
   };
 
   const totalOriginalBytes = jobs.reduce((acc, j) => acc + j.originalSize, 0);
   const readyJobs = jobs.filter(j => j.status === "READY");
+  const queuedJobs = jobs.filter(j => j.status === "QUEUED");
   const hasCompressedJobs = readyJobs.length > 0;
-  const actualSavedBytes = readyJobs.reduce((acc, j) => acc + (j.originalSize - (j.compressedSize || j.originalSize)), 0);
+  const aggregateStats = calculateAggregateStats(readyJobs);
   const overallEstimated = calculateEstimate(totalOriginalBytes, selectedTier);
 
   const textPrimary = theme === "dark" ? "text-neutral-100" : "text-neutral-900";
@@ -361,6 +278,45 @@ export default function PDFCompressApp() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Pro Status / Upgrade Buttons */}
+          {isPro ? (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-[11px] uppercase transition cursor-pointer shadow-xs"
+              title="Pro License Active"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">PRO ACTIVE</span>
+              <span className="sm:hidden">PRO</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setVerifyError(null);
+                  setIsModalOpen(true);
+                }}
+                className={`hidden md:flex items-center gap-1 px-2.5 py-1 border text-[11px] font-bold uppercase transition cursor-pointer ${
+                  theme === "dark" 
+                    ? "border-[#383733] hover:border-neutral-500 text-neutral-400 hover:text-neutral-200" 
+                    : "border-neutral-300 hover:border-neutral-800 text-neutral-700 hover:text-neutral-900"
+                }`}
+                title="Enter license key to restore purchase"
+              >
+                <KeyRound className="w-3 h-3" />
+                <span>Enter Key</span>
+              </button>
+
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 bg-amber-500 hover:bg-amber-400 text-black font-black text-[11px] uppercase tracking-wider transition cursor-pointer shadow shadow-amber-500/10"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                <span>Upgrade to Pro</span>
+              </button>
+            </>
+          )}
+
           {/* Theme Switcher */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -406,7 +362,7 @@ export default function PDFCompressApp() {
               <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
             </div>
             <div className="text-lg sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
-              {hasCompressedJobs ? formatBytes(actualSavedBytes) : formatBytes(overallEstimated.estimatedSaved)}
+              {hasCompressedJobs ? aggregateStats.savingsDisplay : formatBytes(overallEstimated.estimatedSaved)}
             </div>
           </div>
 
@@ -416,9 +372,7 @@ export default function PDFCompressApp() {
               <Gauge className="w-3.5 h-3.5 text-amber-500" />
             </div>
             <div className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono mt-1">
-              {hasCompressedJobs 
-                ? `${Math.round((actualSavedBytes / (readyJobs.reduce((acc, j) => acc + j.originalSize, 0) || 1)) * 100)}%` 
-                : `~${overallEstimated.ratio}%`}
+              {hasCompressedJobs ? aggregateStats.ratioDisplay : `~${overallEstimated.ratio}%`}
             </div>
           </div>
 
@@ -446,21 +400,21 @@ export default function PDFCompressApp() {
                 id: "BALANCED" as const, 
                 name: "BALANCED (RECOMMENDED)", 
                 badge: "STANDARD",
-                desc: "Canvas raster downsampling (58% Q, 1.3x DPI) + stream pack.",
+                desc: "Canvas raster downsampling (58% Q, 1.3x DPI) with structural compaction fallback.",
                 ratioText: "~45% - 60% size drop",
               },
               { 
                 id: "AGGRESSIVE" as const, 
                 name: "MAX COMPRESSION", 
                 badge: "MAX SAVINGS",
-                desc: "Deep downsampling (38% Q, 1.0x DPI) for smallest file size.",
+                desc: "Deep downsampling (38% Q, 1.0x DPI) + metadata strip with auto size guard.",
                 ratioText: "~65% - 80% size drop",
               },
               { 
                 id: "LOSSLESS" as const, 
                 name: "HIGH QUALITY", 
                 badge: "HIGH RES",
-                desc: "High clarity raster (82% Q, 1.6x DPI) + stream compaction.",
+                desc: "High clarity raster (82% Q, 1.6x DPI) + stream compaction with auto size guard.",
                 ratioText: "~20% - 35% size drop",
               },
             ].map(tier => {
@@ -565,7 +519,7 @@ export default function PDFCompressApp() {
               TAP OR DROP PDF DOCUMENTS HERE
             </div>
             <p className={`text-[10px] sm:text-[11px] font-mono font-medium ${textSecondary}`}>
-              True image downsampling & stream compression • 100% in browser
+              Smart downsampling & stream compression • Automatic fallback protection • 100% in browser
             </p>
           </div>
 
@@ -599,17 +553,40 @@ export default function PDFCompressApp() {
                   Clear All
                 </button>
 
+                {/* Batch Compress Button (Gated with Pro Indicator when >1 file) */}
                 <button
                   onClick={handleCompressAll}
                   disabled={isBatchProcessing || jobs.every(j => j.status === "READY")}
-                  className={`flex items-center gap-1 px-3 py-1 sm:px-4 sm:py-1.5 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow ${
+                  title={
+                    !isPro && queuedJobs.length > 1
+                      ? "Upgrade to Pro to compress multiple files at once"
+                      : "Compress queued documents"
+                  }
+                  className={`flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 font-black text-xs uppercase tracking-wider transition cursor-pointer shadow ${
                     isBatchProcessing || jobs.every(j => j.status === "READY")
                       ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"
-                      : "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20"
+                      : !isPro && queuedJobs.length > 1
+                        ? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20"
+                        : "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20"
                   }`}
                 >
-                  {isBatchProcessing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                  <span>{isBatchProcessing ? "Compressing..." : `Compress All (${selectedTier})`}</span>
+                  {isBatchProcessing ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : !isPro && queuedJobs.length > 1 ? (
+                    <Lock className="w-3.5 h-3.5 text-amber-950" />
+                  ) : (
+                    <Zap className="w-3.5 h-3.5" />
+                  )}
+                  <span>
+                    {isBatchProcessing 
+                      ? "Compressing..." 
+                      : `Compress All (${selectedTier})`}
+                  </span>
+                  {!isPro && queuedJobs.length > 1 && (
+                    <span className="text-[9px] font-black px-1 py-0.2 bg-black text-amber-400 border border-amber-400/40 uppercase">
+                      PRO
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -618,6 +595,7 @@ export default function PDFCompressApp() {
             <div className="block sm:hidden space-y-2.5">
               {jobs.map((job) => {
                 const jobEst = calculateEstimate(job.originalSize, selectedTier);
+                const savingsInfo = formatSavingsDisplay(job.originalSize, job.compressedSize, job.wasOriginalKept);
 
                 return (
                   <div 
@@ -663,25 +641,43 @@ export default function PDFCompressApp() {
                       </div>
                       <div>
                         <span className={`block ${textMuted}`}>Optimized</span>
-                        <span className={`font-bold ${job.status === "READY" ? (theme === "dark" ? "text-emerald-400" : "text-emerald-700") : textPrimary}`}>
-                          {job.status === "READY" && job.compressedSize ? formatBytes(job.compressedSize) : `~${formatBytes(jobEst.estimatedFinal)}`}
+                        <span className={`font-bold ${job.status === "READY" ? (job.wasOriginalKept ? textSecondary : theme === "dark" ? "text-emerald-400" : "text-emerald-700") : textPrimary}`}>
+                          {job.status === "READY" && job.compressedSize !== null ? formatBytes(job.compressedSize) : `~${formatBytes(jobEst.estimatedFinal)}`}
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className={`block ${textMuted}`}>Reduction</span>
-                        <span className="font-black text-emerald-600 dark:text-emerald-400">
-                          {job.status === "READY" && job.compressionRatio !== null ? `-${job.compressionRatio}%` : `~ -${jobEst.ratio}%`}
+                        <span className={`block ${textMuted}`}>Savings</span>
+                        <span className={`font-black ${
+                          job.status === "READY" 
+                            ? savingsInfo.isPositive
+                              ? theme === "dark" ? "text-emerald-400" : "text-emerald-600"
+                              : savingsInfo.isNegative
+                                ? "text-rose-500"
+                                : textMuted
+                            : textMuted
+                        }`}>
+                          {job.status === "READY" ? savingsInfo.text : `~ -${jobEst.ratio}%`}
                         </span>
                       </div>
                     </div>
 
+                    {job.status === "READY" && job.note && (
+                      <p className={`text-[9px] font-mono ${job.wasOriginalKept ? (theme === "dark" ? "text-amber-400/90" : "text-amber-700") : textMuted}`}>
+                        {job.note}
+                      </p>
+                    )}
+
                     <div className="flex items-center justify-between pt-1">
                       <span className={`text-[9px] font-black px-1.5 py-0.5 border ${
-                        job.status === "READY" ? (theme === "dark" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300") :
-                        job.status === "COMPRESSING" ? (theme === "dark" ? "bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse" : "bg-amber-100 text-amber-800 border-amber-300 animate-pulse") :
-                        (theme === "dark" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-neutral-100 text-neutral-800 border-neutral-300")
+                        job.status === "READY" 
+                          ? job.wasOriginalKept
+                            ? theme === "dark" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" : "bg-amber-100 text-amber-800 border-amber-300"
+                            : theme === "dark" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : job.status === "COMPRESSING" 
+                            ? theme === "dark" ? "bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse" : "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
+                            : theme === "dark" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-neutral-100 text-neutral-800 border-neutral-300"
                       }`}>
-                        {job.status}
+                        {job.status === "READY" ? (job.wasOriginalKept ? "ORIGINAL KEPT" : "OPTIMIZED") : job.status}
                       </span>
 
                       {job.status === "READY" ? (
@@ -727,6 +723,7 @@ export default function PDFCompressApp() {
                 <tbody className={theme === "dark" ? "divide-y divide-[#262624]" : "divide-y divide-neutral-200"}>
                   {jobs.map((job) => {
                     const jobEst = calculateEstimate(job.originalSize, selectedTier);
+                    const savingsInfo = formatSavingsDisplay(job.originalSize, job.compressedSize, job.wasOriginalKept);
 
                     return (
                       <tr key={job.id} className={`transition-colors ${
@@ -743,6 +740,14 @@ export default function PDFCompressApp() {
                             <span className={theme === "dark" ? "text-amber-400/80 font-bold" : "text-amber-800 font-bold"}>
                               {job.status === "READY" ? job.tier : `${selectedTier} (PREVIEW)`}
                             </span>
+                            {job.status === "READY" && job.note && (
+                              <>
+                                <span>•</span>
+                                <span className={job.wasOriginalKept ? (theme === "dark" ? "text-amber-400 font-medium" : "text-amber-700 font-medium") : textMuted}>
+                                  {job.note}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </td>
 
@@ -751,18 +756,32 @@ export default function PDFCompressApp() {
                         </td>
 
                         <td className={`p-3.5 text-right font-bold ${textPrimary}`}>
-                          {job.status === "READY" && job.compressedSize ? (
-                            <span className={theme === "dark" ? "text-emerald-400" : "text-emerald-700"}>{formatBytes(job.compressedSize)}</span>
+                          {job.status === "READY" && job.compressedSize !== null ? (
+                            <span className={job.wasOriginalKept ? textSecondary : theme === "dark" ? "text-emerald-400" : "text-emerald-700"}>
+                              {formatBytes(job.compressedSize)}
+                            </span>
                           ) : (
-                            <span className={theme === "dark" ? "text-amber-300/80 italic" : "text-amber-800 italic"}>~{formatBytes(jobEst.estimatedFinal)}</span>
+                            <span className={theme === "dark" ? "text-amber-300/80 italic" : "text-amber-800 italic"}>
+                              ~{formatBytes(jobEst.estimatedFinal)}
+                            </span>
                           )}
                         </td>
 
                         <td className="p-3.5 text-right font-black">
-                          {job.status === "READY" && job.compressionRatio !== null ? (
-                            <span className={theme === "dark" ? "text-emerald-400" : "text-emerald-700"}>-{job.compressionRatio}%</span>
+                          {job.status === "READY" ? (
+                            <span className={
+                              savingsInfo.isPositive
+                                ? theme === "dark" ? "text-emerald-400" : "text-emerald-700"
+                                : savingsInfo.isNegative
+                                  ? "text-rose-500 font-bold"
+                                  : textMuted
+                            }>
+                              {savingsInfo.text}
+                            </span>
                           ) : (
-                            <span className={theme === "dark" ? "text-amber-400/80 italic" : "text-amber-800 italic"}>~ -{jobEst.ratio}%</span>
+                            <span className={theme === "dark" ? "text-amber-400/80 italic" : "text-amber-800 italic"}>
+                              ~ -{jobEst.ratio}%
+                            </span>
                           )}
                         </td>
 
@@ -783,12 +802,14 @@ export default function PDFCompressApp() {
                           ) : (
                             <span className={`text-[10px] font-black px-2 py-0.5 border ${
                               job.status === "READY" 
-                                ? (theme === "dark" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300") :
-                              job.status === "ERROR" 
-                                ? (theme === "dark" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-rose-100 text-rose-800 border-rose-300") :
-                              (theme === "dark" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-neutral-100 text-neutral-800 border-neutral-300")
+                                ? job.wasOriginalKept
+                                  ? theme === "dark" ? "bg-amber-500/20 text-amber-400 border-amber-500/40" : "bg-amber-100 text-amber-800 border-amber-300"
+                                  : theme === "dark" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                : job.status === "ERROR" 
+                                  ? theme === "dark" ? "bg-rose-500/20 text-rose-400 border-rose-500/40" : "bg-rose-100 text-rose-800 border-rose-300"
+                                  : theme === "dark" ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-neutral-100 text-neutral-800 border-neutral-300"
                             }`}>
-                              {job.status === "QUEUED" ? "READY" : job.status}
+                              {job.status === "READY" ? (job.wasOriginalKept ? "ORIGINAL KEPT" : "OPTIMIZED") : job.status === "QUEUED" ? "READY" : job.status}
                             </span>
                           )}
                         </td>
@@ -842,6 +863,20 @@ export default function PDFCompressApp() {
         <span>ENGINE: <strong>PDF-PRESS CLIENT ENGINE</strong></span>
         <span>PRIVACY: <strong>100% DISK ISOLATED</strong></span>
       </footer>
+
+      {/* Pro Paywall / License Activation Modal */}
+      <ProModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        isPro={isPro}
+        proState={proState}
+        onOpenCheckout={openCheckout}
+        onVerifyKey={verifyLicenseKey}
+        isVerifying={isVerifying}
+        verifyError={verifyError}
+        onClearError={() => setVerifyError(null)}
+        theme={theme}
+      />
 
     </div>
   );
