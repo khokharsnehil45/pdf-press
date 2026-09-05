@@ -5,6 +5,7 @@ import confetti from "canvas-confetti";
 
 const STORAGE_KEY = "pdf_press_pro_state";
 const DEFAULT_CHECKOUT_URL = "https://app.lemonsqueezy.com/checkout/buy/2093513?embed=1&media=0";
+const EXPECTED_STORE_ID = 467546;
 
 export interface ProState {
   isPro: boolean;
@@ -69,7 +70,6 @@ export function useProStatus() {
         win.LemonSqueezy.Setup({
           eventHandler: (event: { event: string; data?: unknown }) => {
             if (event.event === "Checkout.Success") {
-              // Purchase completed through overlay
               setIsModalOpen(true);
             }
           },
@@ -93,7 +93,7 @@ export function useProStatus() {
 
   const verifyLicenseKey = useCallback(
     async (rawKey: string): Promise<{ success: boolean; error?: string }> => {
-      const key = rawKey.trim();
+      const key = rawKey.trim().replace(/^["']|["']$/g, "");
       if (!key) {
         setVerifyError("Please enter a license key.");
         return { success: false, error: "Please enter a license key." };
@@ -102,6 +102,7 @@ export function useProStatus() {
       setIsVerifying(true);
       setVerifyError(null);
 
+      // 1. Try server-side proxy route (/api/verify-license)
       try {
         const res = await fetch(`/api/verify-license?t=${Date.now()}`, {
           method: "POST",
@@ -133,16 +134,55 @@ export function useProStatus() {
 
           triggerConfetti();
           return { success: true };
+        }
+      } catch (serverErr) {
+        console.warn("Server-side license validation attempt threw, falling back to direct endpoint:", serverErr);
+      }
+
+      // 2. Direct client-side validation fallback to Lemon Squeezy's public validate endpoint
+      try {
+        const form = new URLSearchParams();
+        form.append("license_key", key);
+
+        const directRes = await fetch("https://api.lemonsqueezy.com/v1/licenses/validate", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: form.toString(),
+        });
+
+        const directData = await directRes.json().catch(() => null);
+
+        if (directRes.ok && directData?.valid === true) {
+          const newState: ProState = {
+            isPro: true,
+            licenseKey: directData.license_key?.key || key,
+            customerName: directData.meta?.customer_name || null,
+            customerEmail: directData.meta?.customer_email || null,
+            verifiedAt: Date.now(),
+          };
+
+          setProState(newState);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+          } catch (e) {
+            console.error("Failed to save Pro state to localStorage:", e);
+          }
+
+          triggerConfetti();
+          return { success: true };
         } else {
           const errorMsg =
-            data?.error ||
-            "The license key could not be verified. Please ensure you entered the exact key from your receipt.";
+            directData?.error ||
+            directData?.message ||
+            "The license key could not be verified. Please check your purchase receipt.";
           setVerifyError(errorMsg);
           return { success: false, error: errorMsg };
         }
       } catch (err) {
-        console.error("Network error during license verification:", err);
-        // If the user already had a valid Pro session, don't lock them out due to offline/network glitch
+        console.error("Network error during direct license verification:", err);
         if (proState.isPro) {
           return {
             success: true,
@@ -150,7 +190,7 @@ export function useProStatus() {
           };
         }
         const errorMsg =
-          "Network error: Unable to reach validation server. Please check your internet connection and try again.";
+          "Network error: Unable to reach validation server. Please check your connection and try again.";
         setVerifyError(errorMsg);
         return { success: false, error: errorMsg };
       } finally {
