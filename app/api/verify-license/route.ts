@@ -4,6 +4,7 @@ const LEMON_SQUEEZY_API_URL = "https://api.lemonsqueezy.com/v1/licenses/validate
 
 // Expected product details
 const EXPECTED_STORE_ID = 467546;
+const EXPECTED_PRODUCT_ID = 1340039;
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,42 +19,23 @@ export async function POST(req: NextRequest) {
     }
 
     const licenseKey = rawKey.trim();
-    const apiKey = process.env.LEMONSQUEEZY_API_KEY?.trim();
 
-    if (!apiKey) {
-      console.error("[License Validation] Error: LEMONSQUEEZY_API_KEY is not configured in environment variables.");
-      return NextResponse.json(
-        { 
-          valid: false, 
-          error: "Server license validation is currently unconfigured (LEMONSQUEEZY_API_KEY missing in Vercel)." 
-        },
-        { status: 500 }
-      );
-    }
+    const formBody = new URLSearchParams();
+    formBody.append("license_key", licenseKey);
 
-    const requestPayload = {
-      license_key: licenseKey,
-      instance_name: "pdf-press-web-client",
-    };
-
-    console.log("[License Validation] Sending request to Lemon Squeezy:", {
+    console.log("[License Validation] Validating license key with Lemon Squeezy:", {
       url: LEMON_SQUEEZY_API_URL,
-      licenseKey: `${licenseKey.slice(0, 4)}...${licenseKey.slice(-4)}`,
-      apiKeyPrefix: apiKey.slice(0, 6) + "...",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
+      licenseKey: `${licenseKey.slice(0, 8)}...${licenseKey.slice(-4)}`,
     });
 
+    // Public Lemon Squeezy license endpoint — uses form-urlencoded without Bearer header
     const response = await fetch(LEMON_SQUEEZY_API_URL, {
       method: "POST",
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify(requestPayload),
+      body: formBody.toString(),
     });
 
     const data = await response.json().catch(() => null);
@@ -83,8 +65,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (data.valid === true) {
+      // Validate store / product metadata if available
       if (data.meta?.store_id && Number(data.meta.store_id) !== EXPECTED_STORE_ID) {
-        console.warn(`[License Validation] Store mismatch warning: expected ${EXPECTED_STORE_ID}, got ${data.meta.store_id}`);
+        console.warn(`[License Validation] Store mismatch: expected ${EXPECTED_STORE_ID}, got ${data.meta.store_id}`);
       }
 
       return NextResponse.json({
@@ -93,11 +76,12 @@ export async function POST(req: NextRequest) {
         status: data.license_key?.status || "active",
         customerName: data.meta?.customer_name || null,
         customerEmail: data.meta?.customer_email || null,
+        productName: data.meta?.product_name || "PDF-Press Pro",
         expiresAt: data.license_key?.expires_at || null,
       });
     }
 
-    const failureReason = data.error || data.message || "License key not found or inactive.";
+    const failureReason = data.error || data.message || "License key is invalid or not found.";
     console.warn("[License Validation] License invalid/not found:", failureReason);
 
     return NextResponse.json({
