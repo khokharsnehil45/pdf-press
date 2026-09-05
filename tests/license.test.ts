@@ -10,8 +10,16 @@ test("License validation payload handling: rejects empty keys cleanly", async ()
   }
 });
 
-test("License validation payload handling: trims and accepts properly formatted keys", async () => {
+test("License validation payload handling: formats parameters with license_key", async () => {
   const validKey = "  LEMON-1234-5678-ABCD  ";
   const trimmed = validKey.trim();
   assert.equal(trimmed, "LEMON-1234-5678-ABCD");
+
+  const params = new URLSearchParams();
+  params.append("license_key", trimmed);
+  params.append("key", trimmed);
+  params.append("instance_name", "pdf-press-web-client");
+
+  assert.equal(params.get("license_key"), "LEMON-1234-5678-ABCD");
+  assert.equal(params.get("key"), "LEMON-1234-5678-ABCD");
 });

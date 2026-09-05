@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { 
   Crown, 
   X, 
@@ -42,14 +42,33 @@ export const ProModal: React.FC<ProModalProps> = ({
 }) => {
   const [keyInput, setKeyInput] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Focus input when modal opens if not Pro
+  useEffect(() => {
+    if (isOpen && !isPro) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  }, [isOpen, isPro]);
 
   if (!isOpen) return null;
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerify = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSuccessMessage(null);
     onClearError();
-    const result = await onVerifyKey(keyInput);
+
+    // Read directly from state or input ref to guarantee fresh value on paste/autofill
+    const rawVal = keyInput || inputRef.current?.value || "";
+    const cleanKey = rawVal.trim().replace(/^["']|["']$/g, "");
+
+    if (!cleanKey) {
+      return;
+    }
+
+    const result = await onVerifyKey(cleanKey);
     if (result.success) {
       setSuccessMessage("PDF-PRESS Pro successfully activated! Batch processing unlocked.");
       setKeyInput("");
@@ -217,15 +236,32 @@ export const ProModal: React.FC<ProModalProps> = ({
 
                 <form onSubmit={handleVerify} className="flex gap-1.5">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={keyInput}
                     onChange={(e) => {
                       setKeyInput(e.target.value);
                       if (verifyError) onClearError();
                     }}
+                    onInput={(e) => {
+                      const val = (e.target as HTMLInputElement).value;
+                      setKeyInput(val);
+                      if (verifyError) onClearError();
+                    }}
+                    onPaste={(e) => {
+                      const pasted = e.clipboardData?.getData("text");
+                      if (pasted) {
+                        setKeyInput(pasted);
+                        if (verifyError) onClearError();
+                      }
+                    }}
                     placeholder="Paste Lemon Squeezy License Key"
                     className={`flex-1 px-3 py-1.5 text-xs font-mono border focus:outline-hidden focus:border-amber-500 ${bgInput}`}
                     disabled={isVerifying}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
                   />
                   <button
                     type="submit"
