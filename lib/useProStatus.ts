@@ -103,9 +103,13 @@ export function useProStatus() {
       setVerifyError(null);
 
       try {
-        const res = await fetch("/api/verify-license", {
+        const res = await fetch(`/api/verify-license?t=${Date.now()}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+          },
+          cache: "no-store",
           body: JSON.stringify({ licenseKey: key }),
         });
 

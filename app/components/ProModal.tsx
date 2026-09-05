@@ -60,11 +60,12 @@ export const ProModal: React.FC<ProModalProps> = ({
     setSuccessMessage(null);
     onClearError();
 
-    // Read directly from state or input ref to guarantee fresh value on paste/autofill
-    const rawVal = keyInput || inputRef.current?.value || "";
+    // Read from inputRef first, then state
+    const rawVal = inputRef.current?.value || keyInput || "";
     const cleanKey = rawVal.trim().replace(/^["']|["']$/g, "");
 
     if (!cleanKey) {
+      inputRef.current?.focus();
       return;
     }
 
@@ -72,10 +73,11 @@ export const ProModal: React.FC<ProModalProps> = ({
     if (result.success) {
       setSuccessMessage("PDF-PRESS Pro successfully activated! Batch processing unlocked.");
       setKeyInput("");
+      if (inputRef.current) inputRef.current.value = "";
       setTimeout(() => {
         onClose();
         setSuccessMessage(null);
-      }, 2000);
+      }, 1500);
     }
   };
 
@@ -252,6 +254,7 @@ export const ProModal: React.FC<ProModalProps> = ({
                       const pasted = e.clipboardData?.getData("text");
                       if (pasted) {
                         setKeyInput(pasted);
+                        if (inputRef.current) inputRef.current.value = pasted;
                         if (verifyError) onClearError();
                       }
                     }}
@@ -264,10 +267,11 @@ export const ProModal: React.FC<ProModalProps> = ({
                     spellCheck="false"
                   />
                   <button
-                    type="submit"
-                    disabled={isVerifying || !keyInput.trim()}
+                    type="button"
+                    onClick={() => handleVerify()}
+                    disabled={isVerifying}
                     className={`px-3 py-1.5 border text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
-                      isVerifying || !keyInput.trim()
+                      isVerifying
                         ? "bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed"
                         : theme === "dark"
                           ? "bg-neutral-800 hover:bg-neutral-700 text-neutral-100 border-neutral-600"
